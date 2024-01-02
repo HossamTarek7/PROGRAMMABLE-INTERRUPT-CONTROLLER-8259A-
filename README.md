@@ -16,9 +16,9 @@ Designed for real-time microcomputer systems, it adeptly manages eight levels of
 
 ## Contributors
 
-- Hossam Tarek  2000078
-- Ahmed yousry 2000205
-- SShadi Mohamed Alsaid	2000405
+- Hossam Tarek Elsayed 2000078
+- Ahmed yousry Mohamed 2000205
+- Shadi Mohamed Alsaid	2000405
 - Youssuf Ahmed Ebrahim	2001528
 - Mohamed Fareed Mohamed	2000933
 
