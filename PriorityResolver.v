@@ -162,3 +162,63 @@ module Priority_Resolver (
         end
     end
 endmodule
+//TEST BENCH
+
+module Priority_Resolver_tb;
+
+    // Inputs
+    reg [7:0] IRR;
+    reg clear, set, reset;
+
+    // Outputs
+    wire [2:0] resolved_interrupt;
+
+    // Instantiate the module
+    Priority_Resolver uut (
+        .IRR(IRR),
+        .clear(clear),
+        .set(set),
+        .reset(reset),
+        .resolved_interrupt(resolved_interrupt)
+    );
+
+    // Clock generation
+    reg clk = 0;
+    always #5 clk = ~clk;
+
+    // Initial stimulus
+    initial begin
+        // Initialize inputs
+        IRR = 8'b00000000;
+        clear = 0;
+        set = 0;
+        reset = 1;
+
+        // Apply initial values
+        #10 set = 1;
+
+        // Test case 1: Set interrupts
+        #10 IRR = 8'b00000110;  // Trigger interrupt 0
+       
+
+        // Test case 2: Clear interrupts
+        #10 clear = 1;  // Clear resolved interrupt
+        #10 IRR = 8'b00000010;  // Trigger interrupt 1
+        #10 IRR = 8'b00100000;  // Trigger interrupt 5
+
+        // Test case 3: Fully nested mode
+        #10 reset = 0;
+        #10 IRR = 8'b00001000;  // Trigger interrupt 3
+        #10 IRR = 8'b01000000;  // Trigger interrupt 6
+
+        // End simulation
+        #10 $finish;
+    end
+
+    // Monitor to display important signals
+    always @(posedge clk) begin
+        $display("Time=%0t IRR=%b clear=%b set=%b reset=%b resolved_interrupt=%b",
+                 $time, IRR, clear, set, reset, resolved_interrupt);
+    end
+
+endmodule
