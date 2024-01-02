@@ -1,301 +1,164 @@
-module PriorityResolver (
-  input [7:0] IRR,     // Interrupt Request Register
-  input clear,         // Clear signal
-  input set,           // Set signal
-  input reset,         // Reset signal
-  output reg [2:0] chosen_interrupt  // Chosen interrupt output
+module Priority_Resolver (
+    input [7:0] IRR /* Input from Interrupt Request Register */,
+    input clear /* Input from Interrupt Service Register */,
+    input set /* Input to set flags */,
+    input reset /* Input to reset flags */,
+    output reg [2:0] resolved_interrupt /* Output to Interrupt Service Register */
 );
 
-  reg [2:0] priority_status [0:7];  // Priority status array
-  reg [2:0] chosen;                  // Chosen interrupt priority
-  reg [2:0] iterator [0:7];          // Iterators for each priority level
-  reg prev_set = 0, prev_reset = 1;  // Previous set and reset signals
+    reg [2:0] priority_status [0:7];  // Priority status array
+    reg [2:0] selected;  // Selected interrupt to be serviced
+    reg [2:0] iterator [0:7];  // Iterator array for priority rotation
+    
+    reg prevset = 0;  // Previous set flag
+    reg prevreset = 1;  // Previous reset flag
 
-  always @* begin
-    // Initialize priority status during set or reset
-    if ((prev_set == 0 && set == 1) || (prev_reset == 1 && reset == 0)) begin
-      for (int i = 0; i < 8; i = i + 1) begin
-        priority_status[i] = i;
-      end
-      prev_set = set;
-      prev_reset = reset;
-    end
-
-    // Automatic Rotation Mode
-    if (set || !reset) begin
-      // Assign iterators based on priority status
-      for (int i = 0; i < 8; i = i + 1) begin
-        iterator[i] = (priority_status[i] == i) ? i : 7;
-      end
-
-      // Select the highest priority interrupt with an active request
-      for (int i = 0; i < 8; i = i + 1) begin
-        if (IRR[iterator[i]] == 1'b1) begin
-          chosen_interrupt = iterator[i];
-          chosen = priority_status[iterator[i]];
-          break;
-        end
-      end
-
-      // Rotate priorities
-      for (int i = 0; i < 8; i = i + 1) begin
-        priority_status[iterator[i]] = (i == 7) ? 0 : i + 1;
-      end
-    end else begin
-      // Fully Nested Mode
-      chosen_interrupt = 0;
-      for (int i = 0; i < 8; i = i + 1) begin
-        if (IRR[i] == 1'b1) begin
-          chosen_interrupt = i;
-          break;
-        end
-      end
-    end
-
-    // Clear handling
-    if (clear) begin
-      chosen_interrupt = 0;
-    end
-  end
-endmodule
-
-module PriorityResolver_tb;
-
-  // Parameters
-  parameter CLOCK_PERIOD = 10;  // Clock period in time units
-  parameter SIM_TIME = 100;     // Simulation time in time units
-
-  // Inputs
-  reg [7:0] IRR;     // Interrupt Request Register
-  reg clear;         // Clear signal
-  reg set;           // Set signal
-  reg reset;         // Reset signal
-
-  // Outputs
-  wire [2:0] chosen_interrupt;  // Chosen interrupt output
-
-  // Clock generation
-  reg clock = 0;
-  always #((CLOCK_PERIOD / 2)) clock = ~clock;
-
-  // Instantiate the module
-  PriorityResolver uut (
-    .IRR(IRR),
-    .clear(clear),
-    .set(set),
-    .reset(reset),
-    .chosen_interrupt(chosen_interrupt)
-  );
-
-  // Initial stimulus
-  initial begin
-    // Initialize inputs
-    IRR = 8'b00000000;
-    clear = 0;
-    set = 0;
-    reset = 1;
-
-    // Apply some interrupts
-    #10 IRR = 8'b00000001;  // Activate interrupt 0
-    #10 IRR = 8'b00000100;  // Activate interrupt 2
-    #10 IRR = 8'b00010000;  // Activate interrupt 4
-
-    // Simulate for a while
-    #50 set = 1;   // Set mode
-    #50 reset = 0; // Clear mode
-
-    // Simulate for a longer time
-    #100 reset = 1;  // Reset mode
-    #50 set = 0;     // Fully Nested Mode
-    #50 clear = 1;   // Clear interrupt
-
-    // End simulation
-    #10 $finish;
-  end
-
-  // Monitor for displaying relevant signals
-  always @(posedge clock) begin
-    $display("Time=%0t IRR=%b Chosen=%b", $time, IRR, chosen_interrupt);
-  end
-
-endmodule
-
-
-
-
-//module Priority_Resolver (input [7:0] IRR /*from IRR*/,input clear /*from ISR*/,input set,input reset/*from control */,
-// output reg [2:0] chosen_interrupt /*to ISR*/ );
-/*
-        reg [2:0] priority_status [0:7];  // Array for priority status
-        reg [2:0] chosen    ;
-        reg [2:0] iterator0 ;
-        reg [2:0] iterator1 ;
-        reg [2:0] iterator2 ;
-        reg [2:0] iterator3 ;
-        reg [2:0] iterator4 ;
-        reg [2:0] iterator5 ;
-        reg [2:0] iterator6 ;
-        reg [2:0] iterator7 ;
-
-        reg prevset   = 0;
-        reg prevreset = 1;
-
-
-  always @* begin
-    // Initialize priority status
-    if((prevset == 0 && set == 1) || (prevreset == 1 && reset == 0))begin
-
-            priority_status[0] = 0;
+    always @* begin
+        // Initialize priority status
+        if ((prevset == 0 && set == 1) || (prevreset == 1 && reset == 0)) begin
+            // Set initial priority status
+            priority_status[0] = 0; // Highest priority
             priority_status[1] = 1;
             priority_status[2] = 2;
             priority_status[3] = 3;
             priority_status[4] = 4;
             priority_status[5] = 5;
             priority_status[6] = 6;
-            priority_status[7] = 7;
+            priority_status[7] = 7; // Lowest priority
 
-            prevset = set;
-            prevreset = reset;
+            prevset = set; // Update previous set flag
+            prevreset = reset; // Update previous reset flag
+        end
 
-    end
-          if(set || !reset ) begin
-            ////////Automatic Rotation mode
-                 //highest priority
-                    iterator0 = (priority_status[0] == 0) ? 0 :
-                 (priority_status[1] == 0) ? 1 :
-                 (priority_status[2] == 0) ? 2 :
-                 (priority_status[3] == 0) ? 3 :
-                 (priority_status[4] == 0) ? 4 :
-                 (priority_status[5] == 0) ? 5 :
-                             (priority_status[6] == 0) ? 6 : 7;
-    //2nd
-                  iterator1 =(priority_status[0] == 1) ? 0 :
-                          (priority_status[1] == 1) ? 1 :
-                          (priority_status[2] == 1) ? 2 :
-                          (priority_status[3] == 1) ? 3 :
-                          (priority_status[4] == 1) ? 4 :
-                          (priority_status[5] == 1) ? 5 :
-                          (priority_status[6] == 1) ? 6 : 7;
-                 //3rd
-                  iterator2 = (priority_status[0] == 2) ? 0 :
-                          (priority_status[1] == 2) ? 1 :
-                          (priority_status[2] == 2) ? 2 :
-                          (priority_status[3] == 2) ? 3 :
-                          (priority_status[4] == 2) ? 4 :
-                          (priority_status[5] == 2) ? 5 :
-                          (priority_status[6] == 2) ? 6 : 7;
-                 //4th 
-                  iterator3 = (priority_status[0] == 3) ? 0 :
-                          (priority_status[1] == 3) ? 1 :
-                          (priority_status[2] == 3) ? 2 :
-                          (priority_status[3] == 3) ? 3 :
-                          (priority_status[4] == 3) ? 4 :
-                          (priority_status[5] == 3) ? 5 :
-                          (priority_status[6] == 3) ? 6 : 7;
-      //5th
-                   iterator4 = (priority_status[0] == 4) ? 0 :
-                          (priority_status[1] == 4) ? 1 :
-                          (priority_status[2] == 4) ? 2 :
-                          (priority_status[3] == 4) ? 3 :
-                          (priority_status[4] == 4) ? 4 :
-                          (priority_status[5] == 4) ? 5 :
-                          (priority_status[6] == 4) ? 6 : 7;
-    //6th
-                  iterator5 = (priority_status[0] == 5) ? 0 :
-                          (priority_status[1] == 5) ? 1 :
-                          (priority_status[2] == 5) ? 2 :
-                          (priority_status[3] == 5) ? 3 :
-                          (priority_status[4] == 5) ? 4 :
-                          (priority_status[5] == 5) ? 5 :
-                          (priority_status[6] == 5) ? 6 : 7;
-    //7th
-                  iterator6 = (priority_status[0] == 6) ? 0 :
-                          (priority_status[1] == 6) ? 1 :
-                          (priority_status[2] == 6) ? 2 :
-                          (priority_status[3] == 6) ? 3 :
-                          (priority_status[4] == 6) ? 4 :
-                          (priority_status[5] == 6) ? 5 :
-                          (priority_status[6] == 6) ? 6 : 7;
-                  //least priority
-                    iterator7 = (priority_status[0] == 7) ? 0 :
-                          (priority_status[1] == 7) ? 1 :
-                          (priority_status[2] == 7) ? 2 :
-                          (priority_status[3] == 7) ? 3 :
-                          (priority_status[4] == 7) ? 4 :
-                          (priority_status[5] == 7) ? 5 :
-                          (priority_status[6] == 7) ? 6 : 7;
+        if (set || !reset) begin
+            /* Automatic Rotation mode */
+            // Determine priority based on current interrupt status
+            iterator[0] = (priority_status[0] == 0) ? 0 : // Highest priority
+                           (priority_status[1] == 0) ? 1 :
+                           (priority_status[2] == 0) ? 2 :
+                           (priority_status[3] == 0) ? 3 :
+                           (priority_status[4] == 0) ? 4 :
+                           (priority_status[5] == 0) ? 5 :
+                           (priority_status[6] == 0) ? 6 : 7;
+            iterator[1] = (priority_status[0] == 1) ? 0 :
+                           (priority_status[1] == 1) ? 1 :
+                           (priority_status[2] == 1) ? 2 :
+                           (priority_status[3] == 1) ? 3 :
+                           (priority_status[4] == 1) ? 4 :
+                           (priority_status[5] == 1) ? 5 :
+                           (priority_status[6] == 1) ? 6 : 7;
+            iterator[2] = (priority_status[0] == 2) ? 0 :
+                           (priority_status[1] == 2) ? 1 :
+                           (priority_status[2] == 2) ? 2 :
+                           (priority_status[3] == 2) ? 3 :
+                           (priority_status[4] == 2) ? 4 :
+                           (priority_status[5] == 2) ? 5 :
+                           (priority_status[6] == 2) ? 6 : 7;
+            iterator[3] = (priority_status[0] == 3) ? 0 :
+                           (priority_status[1] == 3) ? 1 :
+                           (priority_status[2] == 3) ? 2 :
+                           (priority_status[3] == 3) ? 3 :
+                           (priority_status[4] == 3) ? 4 :
+                           (priority_status[5] == 3) ? 5 :
+                           (priority_status[6] == 3) ? 6 : 7;
+            iterator[4] = (priority_status[0] == 4) ? 0 :
+                           (priority_status[1] == 4) ? 1 :
+                           (priority_status[2] == 4) ? 2 :
+                           (priority_status[3] == 4) ? 3 :
+                           (priority_status[4] == 4) ? 4 :
+                           (priority_status[5] == 4) ? 5 :
+                           (priority_status[6] == 4) ? 6 : 7;
+            iterator[5] = (priority_status[0] == 5) ? 0 :
+                           (priority_status[1] == 5) ? 1 :
+                           (priority_status[2] == 5) ? 2 :
+                           (priority_status[3] == 5) ? 3 :
+                           (priority_status[4] == 5) ? 4 :
+                           (priority_status[5] == 5) ? 5 :
+                           (priority_status[6] == 5) ? 6 : 7;
+            iterator[6] = (priority_status[0] == 6) ? 0 :
+                           (priority_status[1] == 6) ? 1 :
+                           (priority_status[2] == 6) ? 2 :
+                           (priority_status[3] == 6) ? 3 :
+                           (priority_status[4] == 6) ? 4 :
+                           (priority_status[5] == 6) ? 5 :
+                           (priority_status[6] == 6) ? 6 : 7;
+            iterator[7] = (priority_status[0] == 7) ? 0 :
+                           (priority_status[1] == 7) ? 1 :
+                           (priority_status[2] == 7) ? 2 :
+                           (priority_status[3] == 7) ? 3 :
+                           (priority_status[4] == 7) ? 4 :
+                           (priority_status[5] == 7) ? 5 :
+                           (priority_status[6] == 7) ? 6 : 7;
 
-                   if(IRR[iterator0] == 1'b1) begin
-                          chosen_interrupt  = 0; 
-                          chosen = iterator0;
-                  end else if(IRR[iterator1]== 1'b1) begin
-                          chosen_interrupt = 1; 
-                          chosen = iterator1;
-                  end else if(IRR[iterator2] == 1'b1) begin
-                          chosen_interrupt  = 2; 
-                          chosen = iterator2;
-                  end else if(IRR[iterator3]== 1'b1) begin
-                          chosen_interrupt = 3; 
-                          chosen = iterator3;
-                  end else if(IRR[iterator4] == 1'b1) begin
-                          chosen_interrupt = 4; 
-                          chosen = iterator4;
-                  end else if(IRR[iterator5] == 1'b1) begin
-                          chosen_interrupt = 5; 
-                          chosen = iterator5;
-                  end else if(IRR[iterator6] == 1'b1) begin
-                          chosen_interrupt = 6; 
-                          chosen = iterator6;
-                  end else if(IRR[iterator7] == 1'b1) begin
-                          chosen_interrupt = 7;
-                          chosen = iterator7; 
-                  end
-
-
-
-                  //rotation
-                priority_status[chosen] = 7;
-                chosen = (chosen) > 0 ? (chosen-1):7;
-                priority_status[chosen] = 6;
-                chosen = (chosen) > 0 ? (chosen-1):7;
-                priority_status[chosen] = 5;
-                chosen = (chosen) > 0 ? (chosen-1):7;
-                priority_status[chosen] = 4;
-                chosen = (chosen) > 0 ? (chosen-1):7;
-                priority_status[chosen] = 3;
-                chosen = (chosen) > 0 ? (chosen-1):7;
-                priority_status[chosen] = 2;
-                chosen = (chosen) > 0 ? (chosen-1):7;
-                priority_status[chosen] = 1;
-                chosen = (chosen) > 0 ? (chosen-1):7;
-                priority_status[chosen] = 0;
-
-
-          end else begin
-                  //fully nested mode
-                  if(IRR[0] == 1'b1) begin
-                          chosen_interrupt = 0;
-                  end else if(IRR[1] == 1'b1) begin
-                          chosen_interrupt = 1;
-                  end else if(IRR[2] == 1'b1) begin
-                          chosen_interrupt = 2;
-                  end else if(IRR[3] == 1'b1) begin
-                          chosen_interrupt = 3;
-                  end else if(IRR[4] == 1'b1) begin
-                          chosen_interrupt = 4;
-                  end else if(IRR[5] == 1'b1) begin
-                          chosen_interrupt = 5;
-                  end else if(IRR[6] == 1'b1) begin
-                          chosen_interrupt = 6;
-                  end else if(IRR[7] == 1'b1) begin
-                          chosen_interrupt = 7;
-                  end else begin 
-                          //default no interrupt
-                  end
-          end
-          if(clear)begin
-            chosen_interrupt = 0;
+            // Choose interrupt based on iterator
+            if (IRR[iterator[0]] == 1'b1) begin
+                resolved_interrupt = 0; 
+                selected = iterator[0];
+            end else if (IRR[iterator[1]] == 1'b1) begin
+                resolved_interrupt = 1; 
+                selected = iterator[1];
+            end else if (IRR[iterator[2]] == 1'b1) begin
+                resolved_interrupt = 2; 
+                selected = iterator[2];
+            end else if (IRR[iterator[3]] == 1'b1) begin
+                resolved_interrupt = 3; 
+                selected = iterator[3];
+            end else if (IRR[iterator[4]] == 1'b1) begin
+                resolved_interrupt = 4; 
+                selected = iterator[4];
+            end else if (IRR[iterator[5]] == 1'b1) begin
+                resolved_interrupt = 5; 
+                selected = iterator[5];
+            end else if (IRR[iterator[6]] == 1'b1) begin
+                resolved_interrupt = 6; 
+                selected = iterator[6];
+            end else if (IRR[iterator[7]] == 1'b1) begin
+                resolved_interrupt = 7;
+                selected = iterator[7]; 
             end
-         end
-endmodule
 
+            // Rotation
+            priority_status[selected] = 7;               
+            selected = (selected) > 0 ? (selected-1) : 7;         
+            priority_status[selected] = 6;               
+            selected = (selected) > 0 ? (selected-1) : 7;
+            priority_status[selected] = 5;               
+            selected = (selected) > 0 ? (selected-1) : 7;
+            priority_status[selected] = 4;               
+            selected = (selected) > 0 ? (selected-1) : 7;
+            priority_status[selected] = 3;                
+            selected = (selected) > 0 ? (selected-1) : 7;
+            priority_status[selected] = 2;             
+            selected = (selected) > 0 ? (selected-1) : 7;
+            priority_status[selected] = 1;              
+            selected = (selected) > 0 ? (selected-1) : 7;
+            priority_status[selected] = 0;              
+        end else begin
+            // Fully nested mode
+            if (IRR[0] == 1'b1) begin
+                resolved_interrupt = 0;
+            end else if (IRR[1] == 1'b1) begin
+                resolved_interrupt = 1;
+            end else if (IRR[2] == 1'b1) begin
+                resolved_interrupt = 2;
+            end else if (IRR[3] == 1'b1) begin
+                resolved_interrupt = 3;
+            end else if (IRR[4] == 1'b1) begin
+                resolved_interrupt = 4;
+            end else if (IRR[5] == 1'b1) begin
+                resolved_interrupt = 5;
+            end else if (IRR[6] == 1'b1) begin
+                resolved_interrupt = 6;
+            end else if (IRR[7] == 1'b1) begin
+                resolved_interrupt = 7;
+            end else begin 
+                // Default: no interrupt
+            end
+        end
+
+        if (clear) begin
+            // Clear resolved interrupt when clear signal is active
+            resolved_interrupt = 0;
+        end
+    end
+endmodule
