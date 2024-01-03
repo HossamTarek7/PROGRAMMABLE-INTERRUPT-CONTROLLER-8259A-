@@ -202,8 +202,8 @@ module Priority_Resolver_tb;
 
         // Test case 2: Clear interrupts
         #10 clear = 1;  // Clear resolved interrupt
-        #10 IRR = 8'b00000010;  // Trigger interrupt 1
-        #10 IRR = 8'b00100000;  // Trigger interrupt 5
+        #10 IRR = 8'b00000100;  // Trigger interrupts
+        #10 IRR = 8'b00100010;  // Trigger interrupts
 
         // Test case 3: Fully nested mode
         #10 reset = 0;
@@ -218,6 +218,6 @@ module Priority_Resolver_tb;
     always @(posedge clk) begin
         $display("Time=%0t IRR=%b clear=%b set=%b reset=%b resolved_interrupt=%b",
                  $time, IRR, clear, set, reset, resolved_interrupt);
-    end
+    end
 
 endmodule
