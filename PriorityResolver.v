@@ -91,32 +91,31 @@ module Priority_Resolver (
                            (priority_status[6] == 7) ? 6 : 7;
 
             // Choose interrupt based on iterator
-            if (IRR[iterator[0]] == 1'b1) begin
-                resolved_interrupt = 0; 
+            if (IRR[iterator[0]] == 1'b1) begin                
+                resolved_interrupt = iterator[0]; 
                 selected = iterator[0];
-            end else if (IRR[iterator[1]] == 1'b1) begin
-                resolved_interrupt = 1; 
+            end else if (IRR[iterator[1]] == 1'b1) begin              
+                resolved_interrupt = iterator[1]; 
                 selected = iterator[1];
-            end else if (IRR[iterator[2]] == 1'b1) begin
-                resolved_interrupt = 2; 
+            end else if (IRR[iterator[2]] == 1'b1) begin               
+                resolved_interrupt = iterator[2]; 
                 selected = iterator[2];
-            end else if (IRR[iterator[3]] == 1'b1) begin
-                resolved_interrupt = 3; 
+            end else if (IRR[iterator[3]] == 1'b1) begin               
+                resolved_interrupt = iterator[3]; 
                 selected = iterator[3];
-            end else if (IRR[iterator[4]] == 1'b1) begin
-                resolved_interrupt = 4; 
+            end else if (IRR[iterator[4]] == 1'b1) begin               
+                resolved_interrupt = iterator[4]; 
                 selected = iterator[4];
-            end else if (IRR[iterator[5]] == 1'b1) begin
-                resolved_interrupt = 5; 
+            end else if (IRR[iterator[5]] == 1'b1) begin               
+                resolved_interrupt = iterator[5]; 
                 selected = iterator[5];
-            end else if (IRR[iterator[6]] == 1'b1) begin
-                resolved_interrupt = 6; 
+            end else if (IRR[iterator[6]] == 1'b1) begin               
+                resolved_interrupt = iterator[6]; 
                 selected = iterator[6];
-            end else if (IRR[iterator[7]] == 1'b1) begin
-                resolved_interrupt = 7;
+            end else if (IRR[iterator[7]] == 1'b1) begin               
+                resolved_interrupt = iterator[7];
                 selected = iterator[7]; 
             end
-
             // Rotation
             priority_status[selected] = 7;               
             selected = (selected) > 0 ? (selected-1) : 7;         
